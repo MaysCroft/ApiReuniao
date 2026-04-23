@@ -32,33 +32,32 @@ namespace ApiReuniao.Controllers
         /// </summary>
         /// 
         /// <remarks>
-        /// GET: api/sala:
-        /// 
-        /// Retorna uma lista completa de todas as salas de reunião 
-        /// cadastradas no banco de dados.
-        /// 
-        /// Se não houver salas cadastradas, a API retornará uma 
-        /// mensagem com o status 200 OK.
+        /// GET: api/sala - Retorna a lista de salas
+        ///     
+        /// Observação: 
+        /// - O ID deve ser um número inteiro positivo. 
+        /// Se um ID inválido for fornecido (como um número negativo ou zero), 
+        /// a API retornará um erro 400 Bad Request com uma mensagem explicativa.
         /// </remarks>
         /// 
         /// <returns></returns>
         /// 
-        /// <response code="200">Sala excluída com sucesso!!!</response>
-        /// <response code="204">Conteúdo inválido</response>
-        /// <response code="404">Não encontrado</response>
+        /// <response code="200">Salas encontradas</response>
         /// <response code="500">Erro interno de servidor</response>
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Get()
         {
-            var salas = await _service.Listar();
-            return Ok(salas);
+            try
+            {
+                var salas = await _service.Listar();
+                return Ok(new { mensagem = "Salas de reuniões encontradas!", salas });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensagem = $"Erro ao listar salas : {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -66,38 +65,50 @@ namespace ApiReuniao.Controllers
         /// </summary>
         /// 
         /// <remarks>
-        /// GET: api/sala/Id: 
+        /// GET: api/sala/Id - Retorna uma sala específica por ID
         /// 
-        /// Busca os detalhes de uma sala específica utilizando seu identificador único (ID).
-        /// Caso o ID informado não exista na base de dados, será retornado o status 404 Not Found.
+        /// Exemplo de requisição:
+        ///     {
+        ///        "id": 1
+        ///     }
+        ///     
+        /// Observação: 
+        /// - O ID deve ser um número inteiro positivo. 
+        /// Se um ID inválido for fornecido (como um número negativo ou zero), 
+        /// a API retornará um erro 400 Bad Request com uma mensagem explicativa.
         /// </remarks>
         /// 
         /// <param name="id"></param>
         /// 
         /// <returns></returns>
         /// 
-        /// <response code="200">Sala excluída com sucesso</response>
-        /// <response code="201">Sala criada com sucesso</response>
-        /// <response code="204">Conteúdo inválido</response>
+        /// <response code="200">Sala encontrada</response>
         /// <response code="400">Requisição inválida</response>
         /// <response code="404">Não encontrado</response>
         /// <response code="500">Erro interno de servidor</response>
         [HttpGet("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetById(int id)
         {
-            var sala = await _service.ObterPorId(id);
+            if (id <= 0)
+                return BadRequest(new { mensagem = "O ID informado deve ser maior que zero" });
 
-            if (sala == null)
-                return NotFound();
+            try
+            {
+                var sala = await _service.ObterPorId(id);
 
-            return Ok(sala);
+                if (sala == null)
+                    return NotFound(new { mensagem = $"Sala com ID {id} não encontrada." });
+
+                return Ok(new { mensagem = "Sala de reuniões encontrada!", sala });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensagem = $"Erro ao buscar sala : {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -121,32 +132,33 @@ namespace ApiReuniao.Controllers
         /// 
         /// <returns></returns>
         /// 
-        /// <response code="200">Sala excluída com sucesso</response>
         /// <response code="201">Sala criada com sucesso</response>
-        /// <response code="204">Conteúdo inválido</response>
         /// <response code="400">Requisição inválida</response>
-        /// <response code="404">Não encontrado</response>
         /// <response code="500">Erro interno de servidor</response>
         [HttpPost]
-        [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Post([FromBody] Sala sala)
         {
             try
             {
-                if (sala == null)
-                    return BadRequest("Sala inválida!!!");
+                if (sala == null ||
+                    string.IsNullOrWhiteSpace(sala.Nome) ||
+                    sala.Capacidade <= 0 ||
+                    sala.PrecoHora <= 0 ||
+                    string.IsNullOrWhiteSpace(sala.PossuiProjetor) ||
+                    string.IsNullOrWhiteSpace(sala.Status))
+                {
+                    return BadRequest(new { mensagem = "Todos os campos são obrigatórios!" });
+                }
 
                 await _service.Criar(sala);
                 return CreatedAtAction(nameof(GetById), new { id = sala.Id }, sala);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Erro ao criar registro : {ex.Message}");
+                return StatusCode(500, new { mensagem = $"Erro ao criar registro : {ex.Message}" });
             }
         }
 
@@ -155,6 +167,10 @@ namespace ApiReuniao.Controllers
         /// </summary>
         /// 
         /// <remarks>
+        /// PUT: api/sala/Id - Atualiza todos os campos de uma sala existente.
+        /// 
+        /// Obrigatório que o **ID enviado na URL** seja exatamente igual ao **ID enviado no corpo (JSON)**.
+        /// Se os IDs forem diferentes, a requisição retornará um erro 400 Bad Request.
         /// </remarks>
         /// 
         /// <param name="id"></param>
@@ -162,13 +178,12 @@ namespace ApiReuniao.Controllers
         /// 
         /// <returns></returns>
         /// 
-        /// <response code="200">Sala excluída com sucesso!!!</response>
-        /// <response code="204">Conteúdo inválido</response>
+        /// <response code="200">Sala de reuniões atualizada com sucesso</response>
+        /// <response code="400">Requisição inválida</response>
         /// <response code="404">Não encontrado</response>
         /// <response code="500">Erro interno de servidor</response>
         [HttpPut("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -178,19 +193,19 @@ namespace ApiReuniao.Controllers
             try
             {
                 if (id != sala.Id)
-                    return BadRequest("ID da URL diferente do corpo");
+                    return BadRequest(new { mensagem = "ID da URL diferente do corpo" });
 
                 var existente = await _service.ObterPorId(id);
 
                 if (existente == null)
-                    return NotFound("Produto não encontrado!");
+                    return NotFound(new { mensagem = "Sala não encontrada!" });
 
                 await _service.Atualizar(sala);
-                return Ok("Sala de reuniões atuializada");
+                return Ok("Sala de reuniões atualizada");
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Erro na atualização : {ex.Message}");
+                return StatusCode(500, new { mensagem = $"Erro na atualização : {ex.Message}" });
             }
         }
 
@@ -201,13 +216,13 @@ namespace ApiReuniao.Controllers
         /// </remarks>
         /// <param name="id"></param>
         /// <returns></returns>
-        /// <response code="200">Sala excluída com sucesso!!!</response>
-        /// <response code="204">Conteúdo inválido</response>
+        /// <response code="200">Sala de reuniões excluída com sucesso</response>
+        /// <response code="400">ID inválido</response>
         /// <response code="404">Não encontrado</response>
         /// <response code="500">Erro interno de servidor</response>
         [HttpDelete("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Delete(int id)
@@ -220,15 +235,15 @@ namespace ApiReuniao.Controllers
                 var existence = await _service.ObterPorId(id);
 
                 if (existence == null)
-                    return NotFound("Não encontrado!!!");
+                    return NotFound(new { mensagem = "Sala de reuniões não encontrada!" });
 
                 await _service.Deletar(id);
-                return Ok("Sala deletada!!!");
+                return Ok(new { mensagem = "Sala deletada!!!" });
 
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Erro ao deletar pacote de registro {id} : {ex.Message}");
+                return StatusCode(500, new { mensagem = $"Erro ao deletar pacote de registro {id} : {ex.Message}" });
             }
         }
     }
