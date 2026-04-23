@@ -119,6 +119,7 @@ namespace ApiReuniao.Controllers
         /// POST: api/sala - Cria uma nova sala de reunião
         /// 
         /// Exemplo de requisição:
+        /// 
         ///     {
         ///        "nome": "Sala de Reunião 1",
         ///        "capacidade": 20,
@@ -126,6 +127,7 @@ namespace ApiReuniao.Controllers
         ///        "possuiProjetor": "Sim",
         ///        "status": "Reservada"
         ///     }
+        ///     
         /// </remarks>
         /// 
         /// <param name="sala"></param>
