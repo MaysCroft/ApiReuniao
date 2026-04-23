@@ -76,8 +76,10 @@ namespace ApiReuniao.Controllers
         /// 
         /// <returns></returns>
         /// 
-        /// <response code="200">Sala excluída com sucesso!!!</response>
+        /// <response code="200">Sala excluída com sucesso</response>
+        /// <response code="201">Sala criada com sucesso</response>
         /// <response code="204">Conteúdo inválido</response>
+        /// <response code="400">Requisição inválida</response>
         /// <response code="404">Não encontrado</response>
         /// <response code="500">Erro interno de servidor</response>
         [HttpGet("{id}")]
@@ -119,8 +121,10 @@ namespace ApiReuniao.Controllers
         /// 
         /// <returns></returns>
         /// 
-        /// <response code="200">Sala excluída com sucesso!!!</response>
+        /// <response code="200">Sala excluída com sucesso</response>
+        /// <response code="201">Sala criada com sucesso</response>
         /// <response code="204">Conteúdo inválido</response>
+        /// <response code="400">Requisição inválida</response>
         /// <response code="404">Não encontrado</response>
         /// <response code="500">Erro interno de servidor</response>
         [HttpPost]
@@ -129,12 +133,21 @@ namespace ApiReuniao.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Post([FromBody] Sala sala)
         {
-            await _service.Criar(sala);
-            return CreatedAtAction(nameof(GetById), new { id = sala.Id }, sala);
+            try
+            {
+                if (sala == null)
+                    return BadRequest("Sala inválida!!!");
+
+                await _service.Criar(sala);
+                return CreatedAtAction(nameof(GetById), new { id = sala.Id }, sala);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erro ao criar registro : {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -155,11 +168,9 @@ namespace ApiReuniao.Controllers
         /// <response code="500">Erro interno de servidor</response>
         [HttpPut("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
 
         public async Task<IActionResult> Put(int id, [FromBody] Sala sala)
